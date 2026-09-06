@@ -1193,7 +1193,7 @@ class CameraViewModel(application: Application) : ApertureViewModel(application)
         )
     }
 
-    fun takePhoto() {
+    fun takePhoto(previewBitmap: android.graphics.Bitmap? = null) {
         // Bail out if a photo is already being taken
         if (cameraState.value == CameraState.TAKING_PHOTO) {
             return
@@ -1201,6 +1201,42 @@ class CameraViewModel(application: Application) : ApertureViewModel(application)
 
         cameraState.value = CameraState.TAKING_PHOTO
 
+        // If preview bitmap is provided, save it directly (matches preview exactly)
+        if (previewBitmap != null) {
+            viewModelScope.launch(Dispatchers.IO) {
+                try {
+                    val timestamp = System.currentTimeMillis()
+                    val file = java.io.File(
+                        applicationContext.getExternalFilesDir("UltraCam"),
+                        "UC_${timestamp}.jpg"
+                    )
+                    java.io.FileOutputStream(file).use { out ->
+                        previewBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 95, out)
+                    }
+
+                    // Insert into MediaStore
+                    val values = android.content.ContentValues().apply {
+                        put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, "UC_${timestamp}.jpg")
+                        put(android.provider.MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                        put(android.provider.MediaStore.Images.Media.DATA, file.absolutePath)
+                    }
+                    val uri = applicationContext.contentResolver.insert(
+                        android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values
+                    )
+
+                    cameraSoundsUtils.playShutterClick()
+                    cameraState.value = CameraState.IDLE
+
+                    Log.d(LOG_TAG, "Preview capture saved: ${file.absolutePath}")
+                } catch (e: Exception) {
+                    Log.e(LOG_TAG, "Preview capture failed", e)
+                    cameraState.value = CameraState.IDLE
+                }
+            }
+            return
+        }
+
+        // Standard CameraX capture path
         val photoOutputStream = if (inSingleCaptureMode.value) {
             ByteArrayOutputStream(SINGLE_CAPTURE_PHOTO_BUFFER_INITIAL_SIZE_BYTES)
         } else {

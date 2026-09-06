@@ -602,7 +602,16 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
 
             startTimerAndRun {
                 when (viewModel.cameraMode.value) {
-                    CameraMode.PHOTO -> viewModel.takePhoto()
+                    CameraMode.PHOTO -> {
+                        // When AI is ON, capture from preview (matches what user sees)
+                        // When AI is OFF, use CameraX ImageCapture (raw sensor data)
+                        val bitmap = if (viewModel.samsungAiEnabled.value) {
+                            viewFinder.bitmap
+                        } else {
+                            null
+                        }
+                        viewModel.takePhoto(bitmap)
+                    }
                     CameraMode.VIDEO -> viewModel.captureVideo()
                     else -> {}
                 }
