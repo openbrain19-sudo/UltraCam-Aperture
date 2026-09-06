@@ -27,7 +27,7 @@ class SamsungModeSelectorLayout @JvmOverloads constructor(
         isHorizontalScrollBarEnabled = false
         container = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
-            setPadding(16, 8, 16, 8)
+            setPadding(12, 40, 12, 8)
         }
         addView(container, LayoutParams(
             LayoutParams.WRAP_CONTENT,
@@ -71,7 +71,15 @@ class SamsungModeSelectorLayout @JvmOverloads constructor(
         for ((mode, btn) in buttons) {
             val isSelected = mode == currentMode
             btn.isSelected = isSelected
-            btn.alpha = if (isSelected) 1.0f else 0.6f
+            btn.alpha = if (isSelected) 1.0f else 0.55f
+            btn.setTextColor(
+                if (isSelected) 0xFFFFFFFF.toInt()
+                else 0xAAFFFFFF.toInt()
+            )
+            btn.background.setTint(
+                if (isSelected) 0x40FFFFFF
+                else 0x00000000
+            )
         }
     }
 

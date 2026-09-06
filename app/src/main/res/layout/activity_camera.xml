@@ -18,10 +18,10 @@
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:soundEffectsEnabled="false"
-        app:layout_constraintBottom_toTopOf="@+id/samsungModeSelectorLayout"
+        app:layout_constraintBottom_toTopOf="@+id/secondaryBottomBarLayout"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/samsungModeSelectorLayout"
         app:scaleType="fitCenter" />
 
     <org.lineageos.aperture.ui.views.PreviewBlurView
@@ -271,7 +271,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:paddingTop="16dp"
-        app:layout_constraintBottom_toTopOf="@+id/samsungModeSelectorLayout"
+        app:layout_constraintBottom_toTopOf="@+id/cameraModeSelectorLayout"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
 
@@ -353,21 +353,20 @@
             app:layout_constraintTop_toTopOf="parent" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <org.lineageos.aperture.ui.views.CameraModeSelectorLayout
-        android:id="@+id/cameraModeSelectorLayout"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:visibility="gone"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
-
     <org.lineageos.aperture.ui.views.SamsungModeSelectorLayout
         android:id="@+id/samsungModeSelectorLayout"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:background="#99000000"
         android:scrollbars="none"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <org.lineageos.aperture.ui.views.CameraModeSelectorLayout
+        android:id="@+id/cameraModeSelectorLayout"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
