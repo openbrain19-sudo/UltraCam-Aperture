@@ -474,8 +474,7 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
         flashButton.setOnClickListener { viewModel.cycleFlashMode(false) }
         flashButton.setOnLongClickListener { viewModel.cycleFlashMode(true) }
 
-        // Pinch-to-zoom with ScaleGestureDetector
-        // Beyond CameraX max, scale the PreviewView for digital zoom
+        // Pinch-to-zoom - just set zoom ratio directly for any value
         val scaleGestureDetector = android.view.ScaleGestureDetector(this,
             object : android.view.ScaleGestureDetector.SimpleOnScaleGestureListener() {
                 private var baseZoomRatio = 1.0f
@@ -487,21 +486,9 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
 
                 override fun onScale(detector: android.view.ScaleGestureDetector): Boolean {
                     val newZoom = (baseZoomRatio * detector.scaleFactor).coerceIn(0.5f, 100f)
-                    val maxCameraX = viewModel.zoomState.value?.maxZoomRatio ?: 8.0f
-
                     viewModel.samsungCurrentZoomRatio.value = newZoom
                     viewModel.setSamsungZoomRatio(newZoom)
-
-                    if (newZoom <= maxCameraX) {
-                        viewModel.cameraController.setZoomRatio(newZoom)
-                        viewFinder.scaleX = 1.0f
-                        viewFinder.scaleY = 1.0f
-                    } else {
-                        viewModel.cameraController.setZoomRatio(maxCameraX)
-                        val scaleFactor = newZoom / maxCameraX
-                        viewFinder.scaleX = scaleFactor
-                        viewFinder.scaleY = scaleFactor
-                    }
+                    viewModel.cameraController.setZoomRatio(newZoom)
                     return true
                 }
             })
@@ -547,22 +534,9 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
         zoomLevel.onProgressChangedByUser = { progress ->
             isUserDraggingZoomSlider = true
             val zoomRatio = progressToZoomRatio(progress)
-            val maxCameraX = viewModel.zoomState.value?.maxZoomRatio ?: 8.0f
-
             viewModel.samsungCurrentZoomRatio.value = zoomRatio
             viewModel.setSamsungZoomRatio(zoomRatio)
-
-            if (zoomRatio <= maxCameraX) {
-                viewModel.cameraController.setZoomRatio(zoomRatio)
-                viewFinder.scaleX = 1.0f
-                viewFinder.scaleY = 1.0f
-            } else {
-                viewModel.cameraController.setZoomRatio(maxCameraX)
-                val scaleFactor = zoomRatio / maxCameraX
-                viewFinder.scaleX = scaleFactor
-                viewFinder.scaleY = scaleFactor
-            }
-
+            viewModel.cameraController.setZoomRatio(zoomRatio)
             handler.removeMessages(MSG_CLEAR_ZOOM_DRAG_FLAG)
             handler.sendMessageDelayed(handler.obtainMessage(MSG_CLEAR_ZOOM_DRAG_FLAG), 200)
         }

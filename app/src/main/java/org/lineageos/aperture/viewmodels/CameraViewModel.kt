@@ -1689,20 +1689,15 @@ class CameraViewModel(application: Application) : ApertureViewModel(application)
             return
         }
 
-        val zoomState = zoomState.value
-        val maxCameraXZoom = zoomState?.maxZoomRatio ?: 8.0f
+        val targetZoom = zoomRatio.coerceIn(0.5f, 100f)
 
         // Update Samsung zoom ratio for HAL
-        samsungCurrentZoomRatio.value = zoomRatio
-        setSamsungZoomRatio(zoomRatio)
+        samsungCurrentZoomRatio.value = targetZoom
+        setSamsungZoomRatio(targetZoom)
 
-        if (zoomRatio <= maxCameraXZoom) {
-            // Within CameraX range: use CameraX zoom directly
-            cameraController.setZoomRatio(zoomRatio)
-        } else {
-            // Beyond CameraX max: set CameraX to max, scale the PreviewView for digital zoom
-            cameraController.setZoomRatio(maxCameraXZoom)
-        }
+        // Set zoom directly - CameraX calculates SCALER_CROP_REGION internally
+        // This works for any ratio, the max is just for pinch gesture bounds
+        cameraController.setZoomRatio(targetZoom)
 
         zoomGestureMutex.unlock()
     }
