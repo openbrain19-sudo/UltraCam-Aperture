@@ -604,12 +604,15 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
             startTimerAndRun {
                 when (viewModel.cameraMode.value) {
                     CameraMode.PHOTO -> {
-                        val bitmap = if (viewModel.samsungAiEnabled.value) {
+                        // Use preview bitmap only when flash is OFF
+                        // When flash is ON, need CameraX capture pipeline to trigger flash
+                        val flashOff = viewModel.cameraController.flashMode == FlashMode.OFF
+                        val bitmap = if (viewModel.samsungAiEnabled.value && flashOff) {
                             viewFinder.bitmap
                         } else {
                             null
                         }
-                        Log.i(LOG_TAG, "Taking photo, bitmap=${bitmap != null}")
+                        Log.i(LOG_TAG, "Taking photo, bitmap=${bitmap != null}, flash=$flashOff")
                         viewModel.takePhoto(bitmap)
                     }
                     CameraMode.VIDEO -> viewModel.captureVideo()
