@@ -205,6 +205,7 @@ class CameraViewModel(application: Application) : ApertureViewModel(application)
     val samsungBokehBlur = MutableStateFlow(0)
     val samsungMeteringMode = MutableStateFlow(SamsungVendorKeys.METERING_AUTO)
     val samsungSceneDetectionEnabled = MutableStateFlow(true)
+    val samsungAiEnabled = MutableStateFlow(true)
     val samsungColorTemperature = MutableStateFlow(0)
     val samsungCurrentZoomRatio = MutableStateFlow(1.0f)
     val currentZoomRatio = samsungCurrentZoomRatio
@@ -258,6 +259,12 @@ class CameraViewModel(application: Application) : ApertureViewModel(application)
         updateSamsungCaptureRequestOptions()
     }
 
+    fun toggleSamsungAi() {
+        samsungAiEnabled.value = !samsungAiEnabled.value
+        Log.i(LOG_TAG, "Samsung AI: ${if (samsungAiEnabled.value) "ON" else "OFF"}")
+        updateSamsungCaptureRequestOptions()
+    }
+
     /**
      * Re-apply Samsung vendor tags to the active capture session.
      * Called when any Samsung setting changes without requiring a full camera rebind.
@@ -269,12 +276,16 @@ class CameraViewModel(application: Application) : ApertureViewModel(application)
         } catch (_: Exception) { null } ?: return
 
         try {
+            // Don't apply any Samsung tags if AI is disabled
+            if (!samsungAiEnabled.value) {
+                camera2.setCaptureRequestOptions(CaptureRequestOptions.Builder().build())
+                return
+            }
+
             val samsungMode = samsungShootingMode.value
             val builder = CaptureRequestOptions.Builder()
 
             // Only set Samsung tags when a specific Samsung mode is selected
-            // For default Photo mode (MODE_SINGLE), let HAL use its default behavior
-            // This prevents the aggressive AI processing Samsung applies by default
             if (samsungMode != SamsungVendorKeys.MODE_SINGLE) {
                 builder.setSamsungShootingMode(samsungMode)
 

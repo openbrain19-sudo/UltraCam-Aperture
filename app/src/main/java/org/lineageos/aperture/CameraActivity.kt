@@ -168,6 +168,7 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
     private val effectButton by lazy { findViewById<Button>(R.id.effectButton) }
     private val exposureLevel by lazy { findViewById<VerticalSlider>(R.id.exposureLevel) }
     private val flashButton by lazy { findViewById<ImageButton>(R.id.flashButton) }
+    private val samsungAiToggle by lazy { findViewById<TextView>(R.id.samsungAiToggle) }
     private val flipCameraButton by lazy { findViewById<ImageButton>(R.id.flipCameraButton) }
     private val galleryButtonCardView by lazy { findViewById<CardView>(R.id.galleryButtonCardView) }
     private val galleryButtonIconImageView by lazy { findViewById<ImageView>(R.id.galleryButtonIconImageView) }
@@ -471,6 +472,18 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
         }
         flashButton.setOnClickListener { viewModel.cycleFlashMode(false) }
         flashButton.setOnLongClickListener { viewModel.cycleFlashMode(true) }
+
+        // Samsung AI toggle
+        samsungAiToggle.setOnClickListener {
+            viewModel.toggleSamsungAi()
+            val enabled = viewModel.samsungAiEnabled.value
+            samsungAiToggle.setTextColor(if (enabled) 0xFF4CAF50.toInt() else 0xFFFFFFFF.toInt())
+            samsungAiToggle.background.setTint(if (enabled) 0x404CAF50 else 0x1AFFFFFF)
+            Toast.makeText(this, "Samsung AI: ${if (enabled) "ON" else "OFF"}", Toast.LENGTH_SHORT).show()
+        }
+        // Set initial state
+        samsungAiToggle.setTextColor(0xFF4CAF50.toInt())
+        samsungAiToggle.background.setTint(0x404CAF50)
 
         // Pinch-to-zoom - just set zoom ratio directly for any value
         val scaleGestureDetector = android.view.ScaleGestureDetector(this,
