@@ -277,10 +277,6 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
         override fun handleMessage(msg: Message) {
             super.handleMessage(msg)
             when (msg.what) {
-                MSG_HIDE_ZOOM_SLIDER -> {
-                    zoomLevel.isVisible = false
-                }
-
                 MSG_HIDE_FOCUS_RING -> {
                     viewFinderFocus.isVisible = false
                 }
@@ -504,11 +500,8 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
             })
 
         viewFinder.setOnTouchListener { view, event ->
-            // Scale gesture takes priority - don't pass to other detectors while pinching
             scaleGestureDetector.onTouchEvent(event)
-            if (!isUserPinching) {
-                gestureDetector.onTouchEvent(event)
-            }
+            gestureDetector.onTouchEvent(event)
             true
         }
         viewFinder.setOnClickListener {
@@ -1190,7 +1183,6 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
                     zoomLevel.isVisible = true
 
                     handler.removeMessages(MSG_HIDE_ZOOM_SLIDER)
-                    handler.sendMessageDelayed(handler.obtainMessage(MSG_HIDE_ZOOM_SLIDER), 2000)
 
                     lensSelectorLayout.onZoomRatioChanged(it.zoomRatio)
                 }
