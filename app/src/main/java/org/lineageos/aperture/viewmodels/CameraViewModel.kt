@@ -1689,16 +1689,20 @@ class CameraViewModel(application: Application) : ApertureViewModel(application)
             return
         }
 
-        // Just set the zoom ratio directly - CameraX calculates SCALER_CROP_REGION internally
-        // This works for any zoom level including beyond reported max
-        val targetZoom = zoomRatio.coerceIn(0.5f, 100f)
+        val zoomState = zoomState.value
+        val maxCameraXZoom = zoomState?.maxZoomRatio ?: 8.0f
 
-        // Update Samsung zoom ratio for HAL processing
-        samsungCurrentZoomRatio.value = targetZoom
-        setSamsungZoomRatio(targetZoom)
+        // Update Samsung zoom ratio for HAL
+        samsungCurrentZoomRatio.value = zoomRatio
+        setSamsungZoomRatio(zoomRatio)
 
-        // Let CameraX handle the crop region - it works for any ratio
-        cameraController.setZoomRatio(targetZoom)
+        if (zoomRatio <= maxCameraXZoom) {
+            // Within CameraX range: use CameraX zoom directly
+            cameraController.setZoomRatio(zoomRatio)
+        } else {
+            // Beyond CameraX max: set CameraX to max, scale the PreviewView for digital zoom
+            cameraController.setZoomRatio(maxCameraXZoom)
+        }
 
         zoomGestureMutex.unlock()
     }
