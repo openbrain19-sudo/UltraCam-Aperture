@@ -474,9 +474,28 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
         flashButton.setOnClickListener { viewModel.cycleFlashMode(false) }
         flashButton.setOnLongClickListener { viewModel.cycleFlashMode(true) }
 
-        // Observe manual focus - let PreviewView handle pinch-to-zoom natively
+        // Pinch-to-zoom with ScaleGestureDetector that goes beyond CameraX max
+        val scaleGestureDetector = android.view.ScaleGestureDetector(this,
+            object : android.view.ScaleGestureDetector.SimpleOnScaleGestureListener() {
+                private var baseZoomRatio = 1.0f
+
+                override fun onScaleBegin(detector: android.view.ScaleGestureDetector): Boolean {
+                    baseZoomRatio = viewModel.samsungCurrentZoomRatio.value
+                    return true
+                }
+
+                override fun onScale(detector: android.view.ScaleGestureDetector): Boolean {
+                    val newZoom = (baseZoomRatio * detector.scaleFactor).coerceIn(0.5f, 100f)
+                    viewModel.samsungCurrentZoomRatio.value = newZoom
+                    viewModel.setSamsungZoomRatio(newZoom)
+                    viewModel.cameraController.setZoomRatio(newZoom)
+                    return true
+                }
+            })
+
         viewFinder.setOnTouchListener { _, event ->
-            return@setOnTouchListener gestureDetector.onTouchEvent(event)
+            scaleGestureDetector.onTouchEvent(event)
+            gestureDetector.onTouchEvent(event)
         }
         viewFinder.setOnClickListener {
             // Reset exposure level to 0 EV

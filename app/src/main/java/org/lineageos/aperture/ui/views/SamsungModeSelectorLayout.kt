@@ -4,62 +4,93 @@ import android.content.Context
 import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.widget.Button
-import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import org.lineageos.aperture.R
 import org.lineageos.aperture.samsung.SamsungVendorKeys
 
 /**
- * Horizontal scrollable selector for Samsung shooting modes.
- * Shows all available Samsung HAL modes when in Photo mode.
+ * Two-row Samsung mode selector.
+ * Top row: photo modes (Photo, 108MP, Beauty, Night, Super Night, Pro, HDR, Food, Live Focus)
+ * Bottom row: video/special modes (Video, Pro Video, Slow Motion, Single Take, Director's View, RAW)
  */
 class SamsungModeSelectorLayout @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
-) : HorizontalScrollView(context, attrs, defStyleAttr) {
+) : LinearLayout(context, attrs, defStyleAttr) {
 
-    private val container: LinearLayout
+    private val row1: LinearLayout
+    private val row2: LinearLayout
     private val buttons = mutableMapOf<Int, Button>()
     private var currentMode = SamsungVendorKeys.MODE_SINGLE
 
     var onSamsungModeSelected: (mode: Int) -> Unit = {}
 
     init {
-        isHorizontalScrollBarEnabled = false
-        container = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(12, 40, 12, 8)
+        orientation = VERTICAL
+        setPadding(8, 36, 8, 4)
+
+        row1 = LinearLayout(context).apply {
+            orientation = HORIZONTAL
+            setPadding(0, 0, 0, 3)
         }
-        addView(container, LayoutParams(
-            LayoutParams.WRAP_CONTENT,
-            LayoutParams.WRAP_CONTENT
-        ))
+        addView(row1, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
+
+        row2 = LinearLayout(context).apply {
+            orientation = HORIZONTAL
+        }
+        addView(row2, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
     }
 
-    /**
-     * Set available Samsung modes and create buttons for each.
-     */
     fun setModes(modes: List<Int>) {
-        container.removeAllViews()
+        row1.removeAllViews()
+        row2.removeAllViews()
         buttons.clear()
 
-        for (mode in modes) {
-            val btn = LayoutInflater.from(context)
-                .inflate(R.layout.samsung_mode_button, container, false) as Button
-
-            btn.text = SamsungVendorKeys.modeName(mode)
-            btn.setOnClickListener {
-                if (mode != currentMode) {
-                    selectMode(mode)
-                    onSamsungModeSelected(mode)
-                }
-            }
-
-            buttons[mode] = btn
-            container.addView(btn)
+        // Photo-focused modes on row 1
+        val row1Modes = modes.filter { mode ->
+            mode in listOf(
+                SamsungVendorKeys.MODE_SINGLE,
+                SamsungVendorKeys.MODE_108MP,
+                SamsungVendorKeys.MODE_BEAUTY,
+                SamsungVendorKeys.MODE_NIGHT,
+                SamsungVendorKeys.MODE_SUPER_NIGHT,
+                SamsungVendorKeys.MODE_PRO,
+                SamsungVendorKeys.MODE_HDR,
+                SamsungVendorKeys.MODE_FOOD,
+                SamsungVendorKeys.MODE_LIVE_FOCUS,
+            )
         }
 
-        // Select the current mode
+        // Video/special modes on row 2
+        val row2Modes = modes.filter { mode ->
+            mode !in row1Modes
+        }
+
+        for (mode in row1Modes) {
+            val btn = createModeButton(mode)
+            buttons[mode] = btn
+            row1.addView(btn)
+        }
+
+        for (mode in row2Modes) {
+            val btn = createModeButton(mode)
+            buttons[mode] = btn
+            row2.addView(btn)
+        }
+
         updateHighlight()
+    }
+
+    private fun createModeButton(mode: Int): Button {
+        val btn = LayoutInflater.from(context)
+            .inflate(R.layout.samsung_mode_button, this, false) as Button
+        btn.text = SamsungVendorKeys.modeName(mode)
+        btn.setOnClickListener {
+            if (mode != currentMode) {
+                selectMode(mode)
+                onSamsungModeSelected(mode)
+            }
+        }
+        return btn
     }
 
     fun selectMode(mode: Int) {
