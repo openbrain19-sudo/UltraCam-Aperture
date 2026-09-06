@@ -514,17 +514,11 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
 
         zoomLevel.onProgressChangedByUser = { progress ->
             isUserDraggingZoomSlider = true
-            // Map slider progress (0.0-1.0) to zoom ratio (0.5x-100x) using logarithmic scale
             val zoomRatio = progressToZoomRatio(progress)
             viewModel.samsungCurrentZoomRatio.value = zoomRatio
             viewModel.setSamsungZoomRatio(zoomRatio)
-            // Also set CameraX zoom if within its range, but NOT beyond
-            val maxCameraX = viewModel.zoomState.value?.maxZoomRatio ?: 8.0f
-            if (zoomRatio <= maxCameraX) {
-                viewModel.cameraController.setZoomRatio(zoomRatio)
-            }
-            // When beyond CameraX max, only Samsung tag matters - don't touch CameraX
-            // Clear drag flag after user stops touching
+            // Let CameraX handle the crop region directly
+            viewModel.cameraController.setZoomRatio(zoomRatio)
             handler.removeMessages(MSG_CLEAR_ZOOM_DRAG_FLAG)
             handler.sendMessageDelayed(handler.obtainMessage(MSG_CLEAR_ZOOM_DRAG_FLAG), 200)
         }
@@ -1142,19 +1136,15 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
         launch {
             viewModel.zoomState.collectLatest { zoomState ->
                 zoomState?.takeIf { it.minZoomRatio != it.maxZoomRatio }?.let {
-                    // Don't update slider while user is dragging it
+                    // Update slider position to match actual zoom (including pinch)
                     if (!isUserDraggingZoomSlider) {
-                        val currentZoom = viewModel.samsungCurrentZoomRatio.value
-                        zoomLevel.progress = zoomRatioToProgress(currentZoom)
+                        zoomLevel.progress = zoomRatioToProgress(it.zoomRatio)
                     }
                     zoomLevel.isVisible = true
 
-                    val currentZoom = viewModel.samsungCurrentZoomRatio.value
-                    // Update Samsung zoom ratio for Space Zoom
-                    if (currentZoom > (zoomState.maxZoomRatio ?: 8.0f)) {
-                        viewModel.samsungCurrentZoomRatio.value = it.zoomRatio.coerceAtMost(zoomState.maxZoomRatio ?: 8.0f)
-                        viewModel.setSamsungZoomRatio(it.zoomRatio)
-                    }
+                    // Sync Samsung zoom ratio with CameraX actual zoom
+                    viewModel.samsungCurrentZoomRatio.value = it.zoomRatio
+                    viewModel.setSamsungZoomRatio(it.zoomRatio)
 
                     handler.removeMessages(MSG_HIDE_ZOOM_SLIDER)
                     handler.sendMessageDelayed(handler.obtainMessage(MSG_HIDE_ZOOM_SLIDER), 2000)
