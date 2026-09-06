@@ -34,6 +34,7 @@ import android.widget.HorizontalScrollView
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.Toast
+import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -517,11 +518,12 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
             val zoomRatio = progressToZoomRatio(progress)
             viewModel.samsungCurrentZoomRatio.value = zoomRatio
             viewModel.setSamsungZoomRatio(zoomRatio)
-            // Also set CameraX zoom if within its range
+            // Also set CameraX zoom if within its range, but NOT beyond
             val maxCameraX = viewModel.zoomState.value?.maxZoomRatio ?: 8.0f
             if (zoomRatio <= maxCameraX) {
                 viewModel.cameraController.setZoomRatio(zoomRatio)
             }
+            // When beyond CameraX max, only Samsung tag matters - don't touch CameraX
             // Clear drag flag after user stops touching
             handler.removeMessages(MSG_CLEAR_ZOOM_DRAG_FLAG)
             handler.sendMessageDelayed(handler.obtainMessage(MSG_CLEAR_ZOOM_DRAG_FLAG), 200)
@@ -1147,9 +1149,12 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
                     }
                     zoomLevel.isVisible = true
 
+                    val currentZoom = viewModel.samsungCurrentZoomRatio.value
                     // Update Samsung zoom ratio for Space Zoom
-                    viewModel.samsungCurrentZoomRatio.value = it.zoomRatio
-                    viewModel.setSamsungZoomRatio(it.zoomRatio)
+                    if (currentZoom > (zoomState.maxZoomRatio ?: 8.0f)) {
+                        viewModel.samsungCurrentZoomRatio.value = it.zoomRatio.coerceAtMost(zoomState.maxZoomRatio ?: 8.0f)
+                        viewModel.setSamsungZoomRatio(it.zoomRatio)
+                    }
 
                     handler.removeMessages(MSG_HIDE_ZOOM_SLIDER)
                     handler.sendMessageDelayed(handler.obtainMessage(MSG_HIDE_ZOOM_SLIDER), 2000)

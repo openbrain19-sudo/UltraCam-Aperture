@@ -265,32 +265,62 @@ class CameraViewModel(application: Application) : ApertureViewModel(application)
     @androidx.camera.camera2.interop.ExperimentalCamera2Interop
     private fun updateSamsungCaptureRequestOptions() {
         val camera2 = try {
-            val ext = cameraController.camera2CameraControl
-            ext
+            cameraController.camera2CameraControl
         } catch (_: Exception) { null } ?: return
-        val config = _cameraConfiguration.value ?: return
 
         try {
             val samsungMode = samsungShootingMode.value
-            camera2.setCaptureRequestOptions(
-                CaptureRequestOptions.Builder()
-                    .setSamsungShootingMode(samsungMode)
-                    .setSamsungLiveHdr(
-                        samsungMode == SamsungVendorKeys.MODE_HDR || samsungLiveHdr.value
+            val zoom = samsungCurrentZoomRatio.value
+            val builder = CaptureRequestOptions.Builder()
+                .setSamsungShootingMode(samsungMode)
+                .setSamsungLiveHdr(
+                    samsungMode == SamsungVendorKeys.MODE_HDR || samsungLiveHdr.value
+                )
+                .setSamsungBeautyRetouch(
+                    if (samsungMode == SamsungVendorKeys.MODE_BEAUTY)
+                        samsungBeautyLevel.value else 0
+                )
+                .setSamsungSuperNight(
+                    if (samsungMode == SamsungVendorKeys.MODE_NIGHT ||
+                        samsungMode == SamsungVendorKeys.MODE_SUPER_NIGHT) 1 else 0
+                )
+                .setSamsungMetering(samsungMeteringMode.value)
+                .setSamsungSceneDetection(samsungSceneDetectionEnabled.value)
+                .setSamsungZoomRatio(zoom)
+
+            // For zoom beyond CameraX max, set SCALER_CROP_REGION directly
+            if (zoom > 1.0f) {
+                try {
+                    val cameraManager = applicationContext.getSystemService(
+                        android.content.Context.CAMERA_SERVICE
+                    ) as android.hardware.camera2.CameraManager
+                    val cameraId = _cameraConfiguration.value?.camera?.cameraId ?: return
+                    val chars = cameraManager.getCameraCharacteristics(cameraId)
+                    val activeArray = chars.get(
+                        android.hardware.camera2.CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE
+                    ) ?: return
+
+                    val centerX = activeArray.centerX()
+                    val centerY = activeArray.centerY()
+                    val halfWidth = (activeArray.width() / zoom / 2).toInt()
+                    val halfHeight = (activeArray.height() / zoom / 2).toInt()
+                    val cropRegion = android.graphics.Rect(
+                        (centerX - halfWidth).coerceAtLeast(0),
+                        (centerY - halfHeight).coerceAtLeast(0),
+                        (centerX + halfWidth).coerceAtMost(activeArray.width()),
+                        (centerY + halfHeight).coerceAtMost(activeArray.height())
                     )
-                    .setSamsungBeautyRetouch(
-                        if (samsungMode == SamsungVendorKeys.MODE_BEAUTY)
-                            samsungBeautyLevel.value else 0
+
+                    builder.setCaptureRequestOption(
+                        android.hardware.camera2.CaptureRequest.SCALER_CROP_REGION,
+                        cropRegion
                     )
-                    .setSamsungSuperNight(
-                        if (samsungMode == SamsungVendorKeys.MODE_NIGHT ||
-                            samsungMode == SamsungVendorKeys.MODE_SUPER_NIGHT) 1 else 0
-                    )
-                    .setSamsungMetering(samsungMeteringMode.value)
-                    .setSamsungSceneDetection(samsungSceneDetectionEnabled.value)
-                    .setSamsungZoomRatio(samsungCurrentZoomRatio.value)
-                    .build()
-            )
+                } catch (e: Exception) {
+                    Log.e(LOG_TAG, "Failed to set SCALER_CROP_REGION", e)
+                }
+            }
+
+            camera2.setCaptureRequestOptions(builder.build())
         } catch (e: Exception) {
             Log.e(LOG_TAG, "Failed to update Samsung capture request options", e)
         }
@@ -1699,13 +1729,9 @@ class CameraViewModel(application: Application) : ApertureViewModel(application)
 
         if (zoomRatio > maxCameraXZoom) {
             // Set Samsung zoom ratio directly - HAL handles sensor switching
+            // Do NOT set CameraX zoom - it conflicts with Samsung tag
             samsungCurrentZoomRatio.value = zoomRatio
             setSamsungZoomRatio(zoomRatio)
-
-            // Also try to push CameraX to its max as a baseline
-            if (zoomState != null) {
-                cameraController.setZoomRatio(maxCameraXZoom)
-            }
 
             Log.i(LOG_TAG, "Samsung Space Zoom: ${zoomRatio}x (beyond CameraX max ${maxCameraXZoom}x)")
             zoomGestureMutex.unlock()
