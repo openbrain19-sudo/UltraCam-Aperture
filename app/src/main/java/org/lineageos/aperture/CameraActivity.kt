@@ -270,6 +270,7 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
     }
     private var zoomGestureDetectorIsInProgress = false
     private var isUserDraggingZoomSlider = false
+    private var isUserPinching = false
 
     private val handler = object : Handler(Looper.getMainLooper()) {
         override fun handleMessage(msg: Message) {
@@ -481,6 +482,7 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
 
                 override fun onScaleBegin(detector: android.view.ScaleGestureDetector): Boolean {
                     baseZoomRatio = viewModel.samsungCurrentZoomRatio.value
+                    isUserPinching = true
                     return true
                 }
 
@@ -490,6 +492,10 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
                     viewModel.setSamsungZoomRatio(newZoom)
                     viewModel.cameraController.setZoomRatio(newZoom)
                     return true
+                }
+
+                override fun onScaleEnd(detector: android.view.ScaleGestureDetector) {
+                    handler.postDelayed({ isUserPinching = false }, 300)
                 }
             })
 
@@ -1154,15 +1160,17 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
         launch {
             viewModel.zoomState.collectLatest { zoomState ->
                 zoomState?.takeIf { it.minZoomRatio != it.maxZoomRatio }?.let {
-                    // Update slider position to match actual zoom (including pinch)
-                    if (!isUserDraggingZoomSlider) {
+                    // Don't update slider while user is dragging or pinching
+                    if (!isUserDraggingZoomSlider && !isUserPinching) {
                         zoomLevel.progress = zoomRatioToProgress(it.zoomRatio)
                     }
                     zoomLevel.isVisible = true
 
                     // Sync Samsung zoom ratio with CameraX actual zoom
-                    viewModel.samsungCurrentZoomRatio.value = it.zoomRatio
-                    viewModel.setSamsungZoomRatio(it.zoomRatio)
+                    if (!isUserDraggingZoomSlider && !isUserPinching) {
+                        viewModel.samsungCurrentZoomRatio.value = it.zoomRatio
+                        viewModel.setSamsungZoomRatio(it.zoomRatio)
+                    }
 
                     handler.removeMessages(MSG_HIDE_ZOOM_SLIDER)
                     handler.sendMessageDelayed(handler.obtainMessage(MSG_HIDE_ZOOM_SLIDER), 2000)
@@ -1696,10 +1704,7 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
 
             val camera2Options = cameraConfiguration.camera2Options
 
-            // Set Camera2 CaptureRequest options + Samsung vendor tags
-            val samsungMode = viewModel.samsungShootingMode.value
-            Log.i(LOG_TAG, "Applying Samsung vendor tags: shootingMode=$samsungMode")
-
+            // Set Camera2 CaptureRequest options (NO Samsung tags during session setup)
             camera2CameraControl.setCaptureRequestOptions(CaptureRequestOptions.Builder()
                 .setFrameRate(
                     when (cameraConfiguration) {
@@ -1725,26 +1730,13 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
                 .setColorCorrectionAberrationMode(camera2Options.colorCorrectionAberrationMode)
                 .setDistortionCorrectionMode(camera2Options.distortionCorrectionMode)
                 .setHotPixelMode(camera2Options.hotPixelMode)
-                // ── Samsung vendor tags ──────────────────────────────
-                .setSamsungShootingMode(samsungMode)
-                .setSamsungLiveHdr(
-                    samsungMode == SamsungVendorKeys.MODE_HDR ||
-                    viewModel.samsungLiveHdr.value
-                )
-                .setSamsungBeautyRetouch(
-                    if (samsungMode == SamsungVendorKeys.MODE_BEAUTY)
-                        viewModel.samsungBeautyLevel.value else 0
-                )
-                .setSamsungSuperNight(
-                    if (samsungMode == SamsungVendorKeys.MODE_NIGHT ||
-                        samsungMode == SamsungVendorKeys.MODE_SUPER_NIGHT)
-                        1 else 0
-                )
-                .setSamsungMetering(viewModel.samsungMeteringMode.value)
-                .setSamsungSceneDetection(viewModel.samsungSceneDetectionEnabled.value)
-                .setSamsungZoomRatio(viewModel.currentZoomRatio.value)
                 .build()
             )
+
+            // Apply Samsung vendor tags AFTER session is stable
+            handler.postDelayed({
+                viewModel.applySamsungTags()
+            }, 500)
         }
 
         // Restore settings that can be set on the fly

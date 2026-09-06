@@ -294,6 +294,19 @@ class CameraViewModel(application: Application) : ApertureViewModel(application)
         }
     }
 
+    /**
+     * Apply Samsung vendor tags safely after session is stable.
+     * Called with a delay after session creation.
+     */
+    fun applySamsungTags() {
+        try {
+            updateSamsungCaptureRequestOptions()
+            Log.i(LOG_TAG, "Samsung vendor tags applied successfully")
+        } catch (e: Exception) {
+            Log.e(LOG_TAG, "Failed to apply Samsung vendor tags", e)
+        }
+    }
+
     private val _cameraConfiguration = MutableStateFlow<CameraConfiguration?>(null)
     val cameraConfiguration = _cameraConfiguration
         .filterNotNull()
