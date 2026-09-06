@@ -268,6 +268,7 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
         }
     }
     private var zoomGestureDetectorIsInProgress = false
+    private var isUserDraggingZoomSlider = false
 
     private val handler = object : Handler(Looper.getMainLooper()) {
         override fun handleMessage(msg: Message) {
@@ -283,6 +284,10 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
 
                 MSG_HIDE_EXPOSURE_SLIDER -> {
                     exposureLevel.isVisible = false
+                }
+
+                MSG_CLEAR_ZOOM_DRAG_FLAG -> {
+                    isUserDraggingZoomSlider = false
                 }
             }
         }
@@ -507,9 +512,19 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
         }
 
         zoomLevel.onProgressChangedByUser = { progress ->
+            isUserDraggingZoomSlider = true
             // Map slider progress (0.0-1.0) to zoom ratio (0.5x-100x) using logarithmic scale
             val zoomRatio = progressToZoomRatio(progress)
-            viewModel.smoothZoom(zoomRatio)
+            viewModel.samsungCurrentZoomRatio.value = zoomRatio
+            viewModel.setSamsungZoomRatio(zoomRatio)
+            // Also set CameraX zoom if within its range
+            val maxCameraX = viewModel.zoomState.value?.maxZoomRatio ?: 8.0f
+            if (zoomRatio <= maxCameraX) {
+                viewModel.cameraController.setZoomRatio(zoomRatio)
+            }
+            // Clear drag flag after user stops touching
+            handler.removeMessages(MSG_CLEAR_ZOOM_DRAG_FLAG)
+            handler.sendMessageDelayed(handler.obtainMessage(MSG_CLEAR_ZOOM_DRAG_FLAG), 200)
         }
         zoomLevel.textFormatter = {
             // Show Samsung zoom ratio which includes Space Zoom beyond CameraX max
@@ -1125,9 +1140,11 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
         launch {
             viewModel.zoomState.collectLatest { zoomState ->
                 zoomState?.takeIf { it.minZoomRatio != it.maxZoomRatio }?.let {
-                    // Map CameraX zoom to our 0.5x-100x scale
-                    val currentZoom = viewModel.samsungCurrentZoomRatio.value
-                    zoomLevel.progress = zoomRatioToProgress(currentZoom)
+                    // Don't update slider while user is dragging it
+                    if (!isUserDraggingZoomSlider) {
+                        val currentZoom = viewModel.samsungCurrentZoomRatio.value
+                        zoomLevel.progress = zoomRatioToProgress(currentZoom)
+                    }
                     zoomLevel.isVisible = true
 
                     // Update Samsung zoom ratio for Space Zoom
@@ -2134,6 +2151,7 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
         private const val MSG_HIDE_ZOOM_SLIDER = 0
         private const val MSG_HIDE_FOCUS_RING = 1
         private const val MSG_HIDE_EXPOSURE_SLIDER = 2
+        private const val MSG_CLEAR_ZOOM_DRAG_FLAG = 3
 
         // Zoom range: 0.5x to 100x (Space Zoom)
         private const val ZOOM_MIN = 0.5f
@@ -2142,7 +2160,6 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
         /**
          * Map slider progress (0.0-1.0) to zoom ratio using logarithmic scale.
          * 0.0 -> 0.5x (ultra-wide)
-         * 0.5 -> ~3.16x
          * 1.0 -> 100x (Space Zoom max)
          */
         fun progressToZoomRatio(progress: Float): Float {
