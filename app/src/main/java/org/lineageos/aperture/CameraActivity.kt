@@ -583,6 +583,7 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
         }
 
         shutterButton.setOnClickListener {
+            Log.i(LOG_TAG, "Shutter button clicked, AI=${viewModel.samsungAiEnabled.value}")
             // Shutter animation
             when (viewModel.cameraMode.value) {
                 CameraMode.PHOTO -> startShutterAnimation(ShutterAnimation.PhotoCapture)
@@ -603,13 +604,12 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
             startTimerAndRun {
                 when (viewModel.cameraMode.value) {
                     CameraMode.PHOTO -> {
-                        // When AI is ON, capture from preview (matches what user sees)
-                        // When AI is OFF, use CameraX ImageCapture (raw sensor data)
                         val bitmap = if (viewModel.samsungAiEnabled.value) {
                             viewFinder.bitmap
                         } else {
                             null
                         }
+                        Log.i(LOG_TAG, "Taking photo, bitmap=${bitmap != null}")
                         viewModel.takePhoto(bitmap)
                     }
                     CameraMode.VIDEO -> viewModel.captureVideo()
