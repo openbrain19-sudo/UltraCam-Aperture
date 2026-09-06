@@ -503,9 +503,13 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
                 }
             })
 
-        viewFinder.setOnTouchListener { _, event ->
+        viewFinder.setOnTouchListener { view, event ->
+            // Scale gesture takes priority - don't pass to other detectors while pinching
             scaleGestureDetector.onTouchEvent(event)
-            gestureDetector.onTouchEvent(event)
+            if (!isUserPinching) {
+                gestureDetector.onTouchEvent(event)
+            }
+            true
         }
         viewFinder.setOnClickListener {
             // Reset exposure level to 0 EV
@@ -771,6 +775,17 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
         launch {
             viewModel.cameraConfiguration.collectLatest { cameraConfiguration ->
                 bindCameraUseCases(cameraConfiguration)
+            }
+        }
+
+        // Populate Samsung mode bar when HAL detection completes
+        launch {
+            viewModel.samsungSupportedModes.collectLatest { modes ->
+                if (modes.isNotEmpty() && viewModel.samsungManagerInitialized) {
+                    samsungModeSelectorLayout.isVisible = true
+                    samsungModeSelectorLayout.setModes(modes)
+                    samsungModeSelectorLayout.selectMode(viewModel.samsungShootingMode.value)
+                }
             }
         }
 

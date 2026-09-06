@@ -270,25 +270,25 @@ class CameraViewModel(application: Application) : ApertureViewModel(application)
 
         try {
             val samsungMode = samsungShootingMode.value
-            camera2.setCaptureRequestOptions(
-                CaptureRequestOptions.Builder()
-                    .setSamsungShootingMode(samsungMode)
-                    .setSamsungLiveHdr(
-                        samsungMode == SamsungVendorKeys.MODE_HDR || samsungLiveHdr.value
-                    )
-                    .setSamsungBeautyRetouch(
-                        if (samsungMode == SamsungVendorKeys.MODE_BEAUTY)
-                            samsungBeautyLevel.value else 0
-                    )
-                    .setSamsungSuperNight(
-                        if (samsungMode == SamsungVendorKeys.MODE_NIGHT ||
-                            samsungMode == SamsungVendorKeys.MODE_SUPER_NIGHT) 1 else 0
-                    )
-                    .setSamsungMetering(samsungMeteringMode.value)
-                    .setSamsungSceneDetection(samsungSceneDetectionEnabled.value)
-                    .setSamsungZoomRatio(samsungCurrentZoomRatio.value)
-                    .build()
-            )
+            val builder = CaptureRequestOptions.Builder()
+
+            // Only set Samsung tags when a specific Samsung mode is selected
+            // For default Photo mode (MODE_SINGLE), let HAL use its default behavior
+            // This prevents the aggressive AI processing Samsung applies by default
+            if (samsungMode != SamsungVendorKeys.MODE_SINGLE) {
+                builder.setSamsungShootingMode(samsungMode)
+
+                when (samsungMode) {
+                    SamsungVendorKeys.MODE_HDR -> builder.setSamsungLiveHdr(true)
+                    SamsungVendorKeys.MODE_BEAUTY -> builder.setSamsungBeautyRetouch(samsungBeautyLevel.value)
+                    SamsungVendorKeys.MODE_NIGHT, SamsungVendorKeys.MODE_SUPER_NIGHT ->
+                        builder.setSamsungSuperNight(1)
+                }
+            }
+
+            builder.setSamsungZoomRatio(samsungCurrentZoomRatio.value)
+
+            camera2.setCaptureRequestOptions(builder.build())
         } catch (e: Exception) {
             Log.e(LOG_TAG, "Failed to update Samsung capture request options", e)
         }
