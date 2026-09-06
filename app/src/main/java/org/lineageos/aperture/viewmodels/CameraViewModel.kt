@@ -276,30 +276,33 @@ class CameraViewModel(application: Application) : ApertureViewModel(application)
         } catch (_: Exception) { null } ?: return
 
         try {
-            // Don't apply any Samsung tags if AI is disabled
             if (!samsungAiEnabled.value) {
-                camera2.setCaptureRequestOptions(CaptureRequestOptions.Builder().build())
+                // When AI is off, still set shootingMode=0 so HAL knows it's a photo
+                // But don't set any extra processing tags
+                camera2.setCaptureRequestOptions(
+                    CaptureRequestOptions.Builder()
+                        .setSamsungShootingMode(SamsungVendorKeys.MODE_SINGLE)
+                        .setSamsungZoomRatio(samsungCurrentZoomRatio.value)
+                        .build()
+                )
                 return
             }
 
             val samsungMode = samsungShootingMode.value
-            val builder = CaptureRequestOptions.Builder()
-
-            // Only set Samsung tags when a specific Samsung mode is selected
-            if (samsungMode != SamsungVendorKeys.MODE_SINGLE) {
-                builder.setSamsungShootingMode(samsungMode)
-
-                when (samsungMode) {
-                    SamsungVendorKeys.MODE_HDR -> builder.setSamsungLiveHdr(true)
-                    SamsungVendorKeys.MODE_BEAUTY -> builder.setSamsungBeautyRetouch(samsungBeautyLevel.value)
-                    SamsungVendorKeys.MODE_NIGHT, SamsungVendorKeys.MODE_SUPER_NIGHT ->
-                        builder.setSamsungSuperNight(1)
-                }
-            }
-
-            builder.setSamsungZoomRatio(samsungCurrentZoomRatio.value)
-
-            camera2.setCaptureRequestOptions(builder.build())
+            camera2.setCaptureRequestOptions(
+                CaptureRequestOptions.Builder()
+                    .setSamsungShootingMode(samsungMode)
+                    .setSamsungZoomRatio(samsungCurrentZoomRatio.value)
+                    .apply {
+                        when (samsungMode) {
+                            SamsungVendorKeys.MODE_HDR -> setSamsungLiveHdr(true)
+                            SamsungVendorKeys.MODE_BEAUTY -> setSamsungBeautyRetouch(samsungBeautyLevel.value)
+                            SamsungVendorKeys.MODE_NIGHT, SamsungVendorKeys.MODE_SUPER_NIGHT ->
+                                setSamsungSuperNight(1)
+                        }
+                    }
+                    .build()
+            )
         } catch (e: Exception) {
             Log.e(LOG_TAG, "Failed to update Samsung capture request options", e)
         }
