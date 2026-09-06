@@ -218,7 +218,7 @@ class CameraViewModel(application: Application) : ApertureViewModel(application)
         }
 
         samsungShootingMode.value = resolvedMode
-        Log.i(LOG_TAG, "Samsung shooting mode set to $resolvedMode (${SamsungVendorKeys.modeName(resolvedMode)})")
+        Log.i("CameraViewModel", "Samsung shooting mode set to $resolvedMode (${SamsungVendorKeys.modeName(resolvedMode)})")
 
         // Re-apply capture request options with the new mode
         updateSamsungCaptureRequestOptions()
@@ -261,7 +261,7 @@ class CameraViewModel(application: Application) : ApertureViewModel(application)
 
     fun toggleSamsungAi() {
         samsungAiEnabled.value = !samsungAiEnabled.value
-        Log.i(LOG_TAG, "Samsung AI: ${if (samsungAiEnabled.value) "ON" else "OFF"}")
+        Log.i("CameraViewModel", "Samsung AI: ${if (samsungAiEnabled.value) "ON" else "OFF"}")
         updateSamsungCaptureRequestOptions()
     }
 
@@ -276,35 +276,60 @@ class CameraViewModel(application: Application) : ApertureViewModel(application)
         } catch (_: Exception) { null } ?: return
 
         try {
-            if (!samsungAiEnabled.value) {
-                // When AI is off, still set shootingMode=0 so HAL knows it's a photo
-                // But don't set any extra processing tags
-                camera2.setCaptureRequestOptions(
-                    CaptureRequestOptions.Builder()
-                        .setSamsungShootingMode(SamsungVendorKeys.MODE_SINGLE)
-                        .setSamsungZoomRatio(samsungCurrentZoomRatio.value)
-                        .build()
-                )
-                return
+            val samsungMode = if (samsungAiEnabled.value) samsungShootingMode.value
+                else SamsungVendorKeys.MODE_SINGLE
+            val zoom = samsungCurrentZoomRatio.value
+
+            val builder = CaptureRequestOptions.Builder()
+                .setSamsungShootingMode(samsungMode)
+                .setSamsungZoomRatio(zoom)
+
+            if (samsungAiEnabled.value) {
+                when (samsungMode) {
+                    SamsungVendorKeys.MODE_HDR -> builder.setSamsungLiveHdr(true)
+                    SamsungVendorKeys.MODE_BEAUTY -> builder.setSamsungBeautyRetouch(samsungBeautyLevel.value)
+                    SamsungVendorKeys.MODE_NIGHT, SamsungVendorKeys.MODE_SUPER_NIGHT ->
+                        builder.setSamsungSuperNight(1)
+                }
             }
 
-            val samsungMode = samsungShootingMode.value
-            camera2.setCaptureRequestOptions(
-                CaptureRequestOptions.Builder()
-                    .setSamsungShootingMode(samsungMode)
-                    .setSamsungZoomRatio(samsungCurrentZoomRatio.value)
-                    .apply {
-                        when (samsungMode) {
-                            SamsungVendorKeys.MODE_HDR -> setSamsungLiveHdr(true)
-                            SamsungVendorKeys.MODE_BEAUTY -> setSamsungBeautyRetouch(samsungBeautyLevel.value)
-                            SamsungVendorKeys.MODE_NIGHT, SamsungVendorKeys.MODE_SUPER_NIGHT ->
-                                setSamsungSuperNight(1)
-                        }
-                    }
-                    .build()
-            )
+            // For zoom beyond AOSP max, set SCALER_CROP_REGION
+            // Samsung HAL needs BOTH SCALER_CROP_REGION + samsung.scaler.zoomRatio
+            val maxCameraXZoom = 8.0f
+            if (zoom > maxCameraXZoom) {
+                try {
+                    val cameraManager = applicationContext.getSystemService(
+                        android.content.Context.CAMERA_SERVICE
+                    ) as android.hardware.camera2.CameraManager
+                    val cameraId = _cameraConfiguration.value?.camera?.cameraId ?: return
+                    val chars = cameraManager.getCameraCharacteristics(cameraId)
+                    val activeArray = chars.get(
+                        android.hardware.camera2.CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE
+                    ) ?: return
+
+                    val centerX = activeArray.centerX()
+                    val centerY = activeArray.centerY()
+                    val halfWidth = (activeArray.width() / zoom / 2).toInt()
+                    val halfHeight = (activeArray.height() / zoom / 2).toInt()
+                    val cropRegion = android.graphics.Rect(
+                        (centerX - halfWidth).coerceAtLeast(0),
+                        (centerY - halfHeight).coerceAtLeast(0),
+                        (centerX + halfWidth).coerceAtMost(activeArray.width()),
+                        (centerY + halfHeight).coerceAtMost(activeArray.height())
+                    )
+
+                    builder.setCaptureRequestOption(
+                        android.hardware.camera2.CaptureRequest.SCALER_CROP_REGION,
+                        cropRegion
+                    )
+                } catch (e: Exception) {
+                    Log.e(LOG_TAG, "Failed to set SCALER_CROP_REGION", e)
+                }
+            }
+
+            camera2.setCaptureRequestOptions(builder.build())
         } catch (e: Exception) {
-            Log.e(LOG_TAG, "Failed to update Samsung capture request options", e)
+            Log.e("CameraViewModel", "Failed to update Samsung capture request options", e)
         }
     }
 
@@ -1722,9 +1747,14 @@ class CameraViewModel(application: Application) : ApertureViewModel(application)
         samsungCurrentZoomRatio.value = targetZoom
         setSamsungZoomRatio(targetZoom)
 
-        // Set zoom directly - CameraX calculates SCALER_CROP_REGION internally
-        // This works for any ratio, the max is just for pinch gesture bounds
-        cameraController.setZoomRatio(targetZoom)
+        // For zoom within AOSP max, let CameraX handle SCALER_CROP_REGION
+        val maxCameraXZoom = zoomState.value?.maxZoomRatio ?: 8.0f
+        if (targetZoom <= maxCameraXZoom) {
+            cameraController.setZoomRatio(targetZoom)
+        } else {
+            // Beyond AOSP max: set CameraX to max + Samsung tags handle the rest
+            cameraController.setZoomRatio(maxCameraXZoom)
+        }
 
         zoomGestureMutex.unlock()
     }
