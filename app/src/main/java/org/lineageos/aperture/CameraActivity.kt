@@ -168,6 +168,7 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
     private val effectButton by lazy { findViewById<Button>(R.id.effectButton) }
     private val exposureLevel by lazy { findViewById<VerticalSlider>(R.id.exposureLevel) }
     private val flashButton by lazy { findViewById<ImageButton>(R.id.flashButton) }
+    private val pvwToggle by lazy { findViewById<TextView>(R.id.pvwToggle) }
     private val flipCameraButton by lazy { findViewById<ImageButton>(R.id.flipCameraButton) }
     private val galleryButtonCardView by lazy { findViewById<CardView>(R.id.galleryButtonCardView) }
     private val galleryButtonIconImageView by lazy { findViewById<ImageView>(R.id.galleryButtonIconImageView) }
@@ -471,6 +472,20 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
         }
         flashButton.setOnClickListener { viewModel.cycleFlashMode(false) }
         flashButton.setOnLongClickListener { viewModel.cycleFlashMode(true) }
+
+        // PVW toggle - Samsung processing on capture request only
+        pvwToggle.setOnClickListener {
+            viewModel.samsungAiEnabled.value = !viewModel.samsungAiEnabled.value
+            val on = viewModel.samsungAiEnabled.value
+            pvwToggle.setTextColor(if (on) 0xFF4CAF50.toInt() else 0xFFFFFFFF.toInt())
+            pvwToggle.background.setTint(if (on) 0x404CAF50 else 0x1AFFFFFF)
+            // Apply Samsung tags to ImageCapture capture request
+            applySamsungToCapture(on)
+            Toast.makeText(this, "Preview Mode: ${if (on) "ON" else "OFF"}", Toast.LENGTH_SHORT).show()
+        }
+        // Set initial state (OFF)
+        pvwToggle.setTextColor(0xFFFFFFFF.toInt())
+        pvwToggle.background.setTint(0x1AFFFFFF)
 
         // Pinch-to-zoom - just set zoom ratio directly for any value
         val scaleGestureDetector = android.view.ScaleGestureDetector(this,
@@ -1743,11 +1758,12 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
                 .build()
             )
 
-            // Apply Samsung vendor tags AFTER session is stable
-            // Disabled for now - causes HAL crashes on some devices
-            // handler.postDelayed({
-            //     viewModel.applySamsungTags()
-            // }, 500)
+            // Apply Samsung vendor tags if PVW is ON
+            handler.postDelayed({
+                if (viewModel.samsungAiEnabled.value) {
+                    viewModel.applySamsungTags()
+                }
+            }, 500)
         }
 
         // Restore settings that can be set on the fly
@@ -2159,6 +2175,12 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
                 true
             }
         }
+    }
+
+    private fun applySamsungToCapture(enabled: Boolean) {
+        viewModel.samsungAiEnabled.value = enabled
+        viewModel.applySamsungTags()
+        Log.i(LOG_TAG, "PVW: Samsung tags ${if (enabled) "ON" else "OFF"}")
     }
 
     companion object {

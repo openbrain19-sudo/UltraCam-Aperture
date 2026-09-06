@@ -258,12 +258,29 @@
         <ImageButton
             android:id="@+id/flashButton"
             style="@style/Theme.Aperture.Camera.SecondaryBottomBarButton"
-            android:layout_marginEnd="40dp"
+            android:layout_marginEnd="4dp"
             android:contentDescription="@string/flash_button_description"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/pvwToggle"
             app:layout_constraintTop_toTopOf="parent"
             app:srcCompat="@drawable/ic_flash_off" />
+
+        <TextView
+            android:id="@+id/pvwToggle"
+            android:layout_width="wrap_content"
+            android:layout_height="34dp"
+            android:layout_marginEnd="40dp"
+            android:background="@drawable/samsung_mode_button_bg"
+            android:gravity="center"
+            android:paddingHorizontal="10dp"
+            android:text="PVW"
+            android:textColor="#FFFFFFFF"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:elevation="2dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <androidx.constraintlayout.widget.ConstraintLayout
