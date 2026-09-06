@@ -604,11 +604,19 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
             startTimerAndRun {
                 when (viewModel.cameraMode.value) {
                     CameraMode.PHOTO -> {
-                        // Always capture from preview bitmap (matches what user sees)
-                        // Unless flash is ON - then need CameraX to trigger flash hardware
-                        val flashOff = viewModel.cameraController.flashMode == FlashMode.OFF
-                        val bitmap = if (flashOff) viewFinder.bitmap else null
-                        viewModel.takePhoto(bitmap)
+                        val flashOn = viewModel.cameraController.flashMode == FlashMode.ON ||
+                                viewModel.cameraController.flashMode == FlashMode.AUTO
+                        if (flashOn) {
+                            // Trigger torch, capture preview, then turn off
+                            viewModel.cameraController.enableTorch(true)
+                            handler.postDelayed({
+                                val bitmap = viewFinder.bitmap
+                                viewModel.cameraController.enableTorch(false)
+                                viewModel.takePhoto(bitmap)
+                            }, 100)
+                        } else {
+                            viewModel.takePhoto(viewFinder.bitmap)
+                        }
                     }
                     CameraMode.VIDEO -> viewModel.captureVideo()
                     else -> {}
@@ -1763,9 +1771,10 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
             )
 
             // Apply Samsung vendor tags AFTER session is stable
-            handler.postDelayed({
-                viewModel.applySamsungTags()
-            }, 500)
+            // Disabled for now - causes HAL crashes on some devices
+            // handler.postDelayed({
+            //     viewModel.applySamsungTags()
+            // }, 500)
         }
 
         // Restore settings that can be set on the fly
