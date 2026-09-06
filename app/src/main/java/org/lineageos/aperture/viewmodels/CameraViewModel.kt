@@ -1202,7 +1202,7 @@ class CameraViewModel(application: Application) : ApertureViewModel(application)
         cameraState.value = CameraState.TAKING_PHOTO
 
         // If preview bitmap is provided, save it directly (matches preview exactly)
-        if (previewBitmap != null) {
+        if (previewBitmap != null && !previewBitmap.isRecycled) {
             viewModelScope.launch(Dispatchers.IO) {
                 try {
                     val timestamp = System.currentTimeMillis()
@@ -1220,7 +1220,7 @@ class CameraViewModel(application: Application) : ApertureViewModel(application)
                         put(android.provider.MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
                         put(android.provider.MediaStore.Images.Media.DATA, file.absolutePath)
                     }
-                    val uri = applicationContext.contentResolver.insert(
+                    applicationContext.contentResolver.insert(
                         android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values
                     )
 
@@ -1229,12 +1229,16 @@ class CameraViewModel(application: Application) : ApertureViewModel(application)
 
                     Log.d(LOG_TAG, "Preview capture saved: ${file.absolutePath}")
                 } catch (e: Exception) {
-                    Log.e(LOG_TAG, "Preview capture failed", e)
+                    Log.e(LOG_TAG, "Preview capture failed, falling back to CameraX", e)
                     cameraState.value = CameraState.IDLE
+                    // Fall back to standard CameraX capture
+                    takePhoto(null)
                 }
             }
             return
         }
+
+        // Preview bitmap null or recycled - use standard CameraX capture
 
         // Standard CameraX capture path
         val photoOutputStream = if (inSingleCaptureMode.value) {
