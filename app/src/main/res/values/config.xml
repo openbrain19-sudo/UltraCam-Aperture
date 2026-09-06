@@ -9,16 +9,9 @@
 
     <!-- List of ID of auxiliary cameras that must be ignored by the app. -->
     <string-array name="config_ignoredAuxCameraIds">
-        <!-- No camera is ignored by default. -->
     </string-array>
 
-    <!-- Decide whether to ignore auxiliary cameras that
-         are logical (made of multiple physical sensors).
-         Set this to false if your camera HAL doesn't expose
-         one or more aux cameras as a standalone camera device.
-         Note that you will probably need to add
-         more camera IDs to ignoreCameraIds. -->
-    <bool name="config_ignoreLogicalAuxCameras">true</bool>
+    <bool name="config_ignoreLogicalAuxCameras">false</bool>
 
     <!-- List of ID of camera devices that doesn't advertise
          REQUEST_AVAILABLE_CAPABILITIES_BACKWARD_COMPATIBLE yet are
@@ -78,7 +71,15 @@
              </string-array>
     -->
     <string-array name="config_logicalZoomRatios">
-        <!-- No configuration by default. -->
+        <!-- S20 Ultra (SM-G988B) camera 0: logical multi-camera -->
+        <!-- Camera 0 with ultra-wide, main, telephoto, space zoom -->
+        <item>0</item> <item>0.5</item> <item>0.55632502</item>
+        <item>0</item> <item>1</item> <item>1.0</item>
+        <item>0</item> <item>2</item> <item>2.0</item>
+        <item>0</item> <item>4</item> <item>4.0</item>
+        <item>0</item> <item>10</item> <item>10.0</item>
+        <item>0</item> <item>30</item> <item>30.0</item>
+        <item>0</item> <item>100</item> <item>100.0</item>
     </string-array>
 
     <!-- Whether we should use high resolution output size or not.

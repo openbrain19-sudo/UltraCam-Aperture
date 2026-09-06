@@ -468,11 +468,8 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
         flashButton.setOnClickListener { viewModel.cycleFlashMode(false) }
         flashButton.setOnLongClickListener { viewModel.cycleFlashMode(true) }
 
-        // Observe manual focus
+        // Observe manual focus - let PreviewView handle pinch-to-zoom natively
         viewFinder.setOnTouchListener { _, event ->
-            if (zoomGestureDetector.onTouchEvent(event) && zoomGestureDetectorIsInProgress) {
-                return@setOnTouchListener true
-            }
             return@setOnTouchListener gestureDetector.onTouchEvent(event)
         }
         viewFinder.setOnClickListener {

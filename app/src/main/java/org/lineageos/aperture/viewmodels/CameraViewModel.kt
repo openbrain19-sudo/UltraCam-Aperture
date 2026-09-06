@@ -1691,17 +1691,45 @@ class CameraViewModel(application: Application) : ApertureViewModel(application)
             return
         }
 
-        val zoomState = zoomState.value ?: return
+        val zoomState = zoomState.value
+
+        // For zoom beyond CameraX's max, use Samsung vendor tag directly
+        // The Samsung HAL handles sensor switching and Space Zoom up to 100x
+        val maxCameraXZoom = zoomState?.maxZoomRatio ?: 8.0f
+
+        if (zoomRatio > maxCameraXZoom) {
+            // Set Samsung zoom ratio directly - HAL handles sensor switching
+            samsungCurrentZoomRatio.value = zoomRatio
+            setSamsungZoomRatio(zoomRatio)
+
+            // Also try to push CameraX to its max as a baseline
+            if (zoomState != null) {
+                cameraController.setZoomRatio(maxCameraXZoom)
+            }
+
+            Log.i(LOG_TAG, "Samsung Space Zoom: ${zoomRatio}x (beyond CameraX max ${maxCameraXZoom}x)")
+            zoomGestureMutex.unlock()
+            return
+        }
+
+        // For zoom within CameraX range, use CameraX zoom
+        val targetZoom = zoomRatio.coerceIn(
+            zoomState?.minZoomRatio ?: 1.0f,
+            maxCameraXZoom
+        )
 
         ValueAnimator.ofFloat(
-            zoomState.zoomRatio,
-            zoomRatio.coerceIn(zoomState.minZoomRatio, zoomState.maxZoomRatio)
+            zoomState?.zoomRatio ?: 1.0f,
+            targetZoom
         ).apply {
             addUpdateListener {
                 cameraController.setZoomRatio(it.animatedValue as Float)
             }
             addListener(
                 onEnd = {
+                    // Update Samsung zoom ratio too
+                    samsungCurrentZoomRatio.value = targetZoom
+                    setSamsungZoomRatio(targetZoom)
                     zoomGestureMutex.unlock()
                 }
             )
