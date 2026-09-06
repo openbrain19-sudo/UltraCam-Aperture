@@ -1,0 +1,22 @@
+//
+// SPDX-FileCopyrightText: The LineageOS Project
+// SPDX-License-Identifier: Apache-2.0
+//
+
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
+android_app {
+    name: "ApertureLensLauncher",
+
+    srcs: ["src/main/java/**/*.kt"],
+    manifest: "src/main/AndroidManifest.xml",
+
+    sdk_version: "35",
+    product_specific: true,
+
+    optimize: {
+        proguard_flags_files: ["proguard-rules.pro"],
+    },
+}

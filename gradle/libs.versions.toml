@@ -1,0 +1,52 @@
+#
+# SPDX-FileCopyrightText: The LineageOS Project
+# SPDX-License-Identifier: Apache-2.0
+#
+
+[versions]
+agp = "8.13.0"
+kotlin = "2.2.0"
+activity = "1.9.2"
+appcompat = "1.7.0"
+camera = "1.7.0-alpha03"
+coil = "3.0.4"
+constraintlayout = "2.1.4"
+core = "1.13.1"
+exifinterface = "1.3.7"
+kotlinx-coroutines = "1.10.1"
+lifecycle = "2.8.5"
+material = "1.9.0"
+media3 = "1.10.0"
+preference = "1.2.1"
+recyclerview = "1.3.2"
+zxing = "3.5.3"
+zxing-cpp = "3.1.1"
+
+[libraries]
+androidx-activity-ktx = { group = "androidx.activity", name = "activity-ktx", version.ref = "activity" }
+androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camera" }
+androidx-camera-core = { group = "androidx.camera", name = "camera-core", version.ref = "camera" }
+androidx-camera-extensions = { group = "androidx.camera", name = "camera-extensions", version.ref = "camera" }
+androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camera" }
+androidx-camera-video = { group = "androidx.camera", name = "camera-video", version.ref = "camera" }
+androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "camera" }
+androidx-camera-viewfinder-core = { group = "androidx.camera.viewfinder", name = "viewfinder-core", version.ref = "camera" }
+androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "core" }
+androidx-exifinterface = { group = "androidx.exifinterface", name = "exifinterface", version.ref = "exifinterface" }
+androidx-lifecycle-viewmodel-ktx = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-ktx", version.ref = "lifecycle" }
+androidx-media3-exoplayer = { group = "androidx.media3", name = "media3-exoplayer", version.ref = "media3" }
+androidx-media3-ui = { group = "androidx.media3", name = "media3-ui", version.ref = "media3" }
+androidx-preference = { group = "androidx.preference", name = "preference", version.ref = "preference" }
+androidx-recyclerview = { group = "androidx.recyclerview", name = "recyclerview", version.ref = "recyclerview" }
+coil = { group = "io.coil-kt.coil3", name = "coil", version.ref = "coil" }
+coil-video = { group = "io.coil-kt.coil3", name = "coil-video", version.ref = "coil" }
+kotlinx-coroutines-guava = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-guava", version.ref = "kotlinx-coroutines" }
+material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
+zxing-cpp-android = { group = "io.github.zxing-cpp", name = "android", version.ref = "zxing-cpp" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
