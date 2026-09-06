@@ -1205,36 +1205,54 @@ class CameraViewModel(application: Application) : ApertureViewModel(application)
         if (previewBitmap != null && !previewBitmap.isRecycled) {
             viewModelScope.launch(Dispatchers.IO) {
                 try {
+                    Log.d(LOG_TAG, "Preview capture: bitmap ${previewBitmap.width}x${previewBitmap.height}, config=${previewBitmap.config}")
                     val timestamp = System.currentTimeMillis()
-                    val file = java.io.File(
-                        applicationContext.getExternalFilesDir("UltraCam"),
-                        "UC_${timestamp}.jpg"
-                    )
+                    val dir = applicationContext.getExternalFilesDir("UltraCam")
+                    Log.d(LOG_TAG, "Preview capture: dir=${dir?.absolutePath}, exists=${dir?.exists()}")
+                    if (dir != null && !dir.exists()) dir.mkdirs()
+
+                    val file = java.io.File(dir, "UC_${timestamp}.jpg")
                     java.io.FileOutputStream(file).use { out ->
-                        previewBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 95, out)
+                        val compressed = previewBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 95, out)
+                        Log.d(LOG_TAG, "Preview capture: compressed=$compressed, file.size=${file.length()}")
                     }
 
                     val values = android.content.ContentValues().apply {
                         put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, "UC_${timestamp}.jpg")
                         put(android.provider.MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
-                        put(android.provider.MediaStore.Images.Media.DATA, file.absolutePath)
+                        put(android.provider.MediaStore.Images.Media.RELATIVE_PATH, "Pictures/UltraCam")
+                        put(android.provider.MediaStore.Images.Media.IS_PENDING, 1)
                     }
-                    applicationContext.contentResolver.insert(
+                    val uri = applicationContext.contentResolver.insert(
                         android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values
                     )
+                    Log.d(LOG_TAG, "Preview capture: MediaStore uri=$uri")
+
+                    // Copy file content to MediaStore
+                    if (uri != null) {
+                        applicationContext.contentResolver.openOutputStream(uri)?.use { out ->
+                            java.io.FileInputStream(file).use { inp ->
+                                inp.copyTo(out)
+                            }
+                        }
+                        val updateValues = android.content.ContentValues().apply {
+                            put(android.provider.MediaStore.Images.Media.IS_PENDING, 0)
+                        }
+                        applicationContext.contentResolver.update(uri, updateValues, null, null)
+                    }
 
                     cameraSoundsUtils.playShutterClick()
                     cameraState.value = CameraState.IDLE
-                    Log.d(LOG_TAG, "Preview capture saved: ${file.absolutePath}")
+                    Log.d(LOG_TAG, "Preview capture SUCCESS: ${file.absolutePath}")
                 } catch (e: Exception) {
-                    Log.e(LOG_TAG, "Preview capture failed, using CameraX fallback", e)
+                    Log.e(LOG_TAG, "Preview capture FAILED", e)
                     cameraState.value = CameraState.IDLE
                 }
             }
             return
         }
 
-        // Bitmap is null or recycled - fall through to CameraX capture below
+        Log.d(LOG_TAG, "Preview bitmap null or recycled, using CameraX capture")
 
         // Standard CameraX capture path
         val photoOutputStream = if (inSingleCaptureMode.value) {
