@@ -24,7 +24,7 @@ class SamsungModeSelectorLayout @JvmOverloads constructor(
 
     init {
         isHorizontalScrollBarEnabled = false
-        setPadding(8, 36, 8, 8)
+        setPadding(8, 48, 8, 8)
         container = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(4, 0, 4, 0)

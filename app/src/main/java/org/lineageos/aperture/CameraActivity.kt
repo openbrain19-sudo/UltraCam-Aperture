@@ -271,6 +271,7 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
     private var zoomGestureDetectorIsInProgress = false
     private var isUserDraggingZoomSlider = false
     private var isUserPinching = false
+    private var lastUserZoomInteraction = 0L
 
     private val handler = object : Handler(Looper.getMainLooper()) {
         override fun handleMessage(msg: Message) {
@@ -483,6 +484,7 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
                 override fun onScaleBegin(detector: android.view.ScaleGestureDetector): Boolean {
                     baseZoomRatio = viewModel.samsungCurrentZoomRatio.value
                     isUserPinching = true
+                    lastUserZoomInteraction = System.currentTimeMillis()
                     return true
                 }
 
@@ -491,11 +493,13 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
                     viewModel.samsungCurrentZoomRatio.value = newZoom
                     viewModel.setSamsungZoomRatio(newZoom)
                     viewModel.cameraController.setZoomRatio(newZoom)
+                    lastUserZoomInteraction = System.currentTimeMillis()
                     return true
                 }
 
                 override fun onScaleEnd(detector: android.view.ScaleGestureDetector) {
-                    handler.postDelayed({ isUserPinching = false }, 300)
+                    lastUserZoomInteraction = System.currentTimeMillis()
+                    handler.postDelayed({ isUserPinching = false }, 500)
                 }
             })
 
@@ -539,6 +543,7 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
 
         zoomLevel.onProgressChangedByUser = { progress ->
             isUserDraggingZoomSlider = true
+            lastUserZoomInteraction = System.currentTimeMillis()
             val zoomRatio = progressToZoomRatio(progress)
             viewModel.samsungCurrentZoomRatio.value = zoomRatio
             viewModel.setSamsungZoomRatio(zoomRatio)
@@ -1160,17 +1165,14 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
         launch {
             viewModel.zoomState.collectLatest { zoomState ->
                 zoomState?.takeIf { it.minZoomRatio != it.maxZoomRatio }?.let {
-                    // Don't update slider while user is dragging or pinching
-                    if (!isUserDraggingZoomSlider && !isUserPinching) {
+                    // Only update slider if user hasn't interacted in last 500ms
+                    val timeSinceInteraction = System.currentTimeMillis() - lastUserZoomInteraction
+                    if (timeSinceInteraction > 500 && !isUserDraggingZoomSlider) {
                         zoomLevel.progress = zoomRatioToProgress(it.zoomRatio)
-                    }
-                    zoomLevel.isVisible = true
-
-                    // Sync Samsung zoom ratio with CameraX actual zoom
-                    if (!isUserDraggingZoomSlider && !isUserPinching) {
                         viewModel.samsungCurrentZoomRatio.value = it.zoomRatio
                         viewModel.setSamsungZoomRatio(it.zoomRatio)
                     }
+                    zoomLevel.isVisible = true
 
                     handler.removeMessages(MSG_HIDE_ZOOM_SLIDER)
                     handler.sendMessageDelayed(handler.obtainMessage(MSG_HIDE_ZOOM_SLIDER), 2000)

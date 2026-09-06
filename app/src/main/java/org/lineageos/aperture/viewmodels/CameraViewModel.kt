@@ -201,7 +201,7 @@ class CameraViewModel(application: Application) : ApertureViewModel(application)
     // ── Samsung vendor tag states ────────────────────────────────────
     val samsungShootingMode = MutableStateFlow(SamsungVendorKeys.MODE_SINGLE)
     val samsungLiveHdr = MutableStateFlow(false)
-    val samsungBeautyLevel = MutableStateFlow(5)
+    val samsungBeautyLevel = MutableStateFlow(2)
     val samsungBokehBlur = MutableStateFlow(0)
     val samsungMeteringMode = MutableStateFlow(SamsungVendorKeys.METERING_AUTO)
     val samsungSceneDetectionEnabled = MutableStateFlow(true)
