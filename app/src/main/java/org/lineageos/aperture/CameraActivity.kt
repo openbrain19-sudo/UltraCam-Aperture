@@ -1761,6 +1761,24 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
             // Apply Samsung vendor tags if PVW is ON
             handler.postDelayed({
                 if (viewModel.samsungAiEnabled.value) {
+                    // Try Samsung setParameters initialization first
+                    try {
+                        val cameraDevice = viewModel.cameraController.javaClass
+                            .getDeclaredMethod("getCameraControl")
+                            .invoke(viewModel.cameraController)
+                        // Try to get the underlying CameraDevice
+                        val getCamera = cameraDevice.javaClass
+                            .getDeclaredMethod("getCamera")
+                        getCamera.isAccessible = true
+                        val device = getCamera.invoke(cameraDevice)
+
+                        // Set Samsung parameters via reflection
+                        val setParams = device.javaClass.getMethod("setParameters", String::class.java)
+                        setParams.invoke(device, "first-entrance=true;samsungcamera=true;shootingmode=0")
+                        Log.i(LOG_TAG, "Samsung setParameters initialized")
+                    } catch (e: Exception) {
+                        Log.w(LOG_TAG, "Samsung setParameters not available: ${e.message}")
+                    }
                     viewModel.applySamsungTags()
                 }
             }, 500)
