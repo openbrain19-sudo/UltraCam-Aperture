@@ -46,6 +46,19 @@
             android:name="androidx.camera.extensions.impl"
             android:required="false" />
 
+        <!-- Samsung Camera2 raw engine (launcher for testing) -->
+        <activity
+            android:name="org.lineageos.aperture.test.SamsungCameraActivity2"
+            android:exported="true"
+            android:screenOrientation="nosensor"
+            android:theme="@style/Theme.Aperture.Camera"
+            android:windowSoftInputMode="stateAlwaysHidden">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
         <activity
             android:name=".CameraActivity"
             android:clearTaskOnLaunch="true"
