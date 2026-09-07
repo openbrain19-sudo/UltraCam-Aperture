@@ -168,7 +168,6 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
     private val effectButton by lazy { findViewById<Button>(R.id.effectButton) }
     private val exposureLevel by lazy { findViewById<VerticalSlider>(R.id.exposureLevel) }
     private val flashButton by lazy { findViewById<ImageButton>(R.id.flashButton) }
-    private val pvwToggle by lazy { findViewById<TextView>(R.id.pvwToggle) }
     private val flipCameraButton by lazy { findViewById<ImageButton>(R.id.flipCameraButton) }
     private val galleryButtonCardView by lazy { findViewById<CardView>(R.id.galleryButtonCardView) }
     private val galleryButtonIconImageView by lazy { findViewById<ImageView>(R.id.galleryButtonIconImageView) }
@@ -473,20 +472,6 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
         flashButton.setOnClickListener { viewModel.cycleFlashMode(false) }
         flashButton.setOnLongClickListener { viewModel.cycleFlashMode(true) }
 
-        // PVW toggle - Samsung processing on capture request only
-        pvwToggle.setOnClickListener {
-            viewModel.samsungAiEnabled.value = !viewModel.samsungAiEnabled.value
-            val on = viewModel.samsungAiEnabled.value
-            pvwToggle.setTextColor(if (on) 0xFF4CAF50.toInt() else 0xFFFFFFFF.toInt())
-            pvwToggle.background.setTint(if (on) 0x404CAF50 else 0x1AFFFFFF)
-            // Apply Samsung tags to ImageCapture capture request
-            applySamsungToCapture(on)
-            Toast.makeText(this, "Preview Mode: ${if (on) "ON" else "OFF"}", Toast.LENGTH_SHORT).show()
-        }
-        // Set initial state (OFF)
-        pvwToggle.setTextColor(0xFFFFFFFF.toInt())
-        pvwToggle.background.setTint(0x1AFFFFFF)
-
         // Pinch-to-zoom - just set zoom ratio directly for any value
         val scaleGestureDetector = android.view.ScaleGestureDetector(this,
             object : android.view.ScaleGestureDetector.SimpleOnScaleGestureListener() {
@@ -557,9 +542,11 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
             isUserDraggingZoomSlider = true
             lastUserZoomInteraction = System.currentTimeMillis()
             val zoomRatio = progressToZoomRatio(progress)
+            Log.i(LOG_TAG, "SLIDER: progress=$progress -> zoomRatio=$zoomRatio")
             viewModel.samsungCurrentZoomRatio.value = zoomRatio
             viewModel.setSamsungZoomRatio(zoomRatio)
             viewModel.cameraController.setZoomRatio(zoomRatio)
+            Log.i(LOG_TAG, "SLIDER: setZoomRatio($zoomRatio) + samsungZoomRatio=$zoomRatio")
             handler.removeMessages(MSG_CLEAR_ZOOM_DRAG_FLAG)
             handler.sendMessageDelayed(handler.obtainMessage(MSG_CLEAR_ZOOM_DRAG_FLAG), 200)
         }
@@ -1189,17 +1176,17 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
         launch {
             viewModel.zoomState.collectLatest { zoomState ->
                 zoomState?.takeIf { it.minZoomRatio != it.maxZoomRatio }?.let {
-                    // Only update slider if user hasn't interacted in last 500ms
                     val timeSinceInteraction = System.currentTimeMillis() - lastUserZoomInteraction
+                    Log.i(LOG_TAG, "ZOOM_STATE: ratio=${it.zoomRatio}, linear=${it.linearZoom}, " +
+                            "min=${it.minZoomRatio}, max=${it.maxZoomRatio}, " +
+                            "sinceTouch=${timeSinceInteraction}ms, dragging=$isUserDraggingZoomSlider")
                     if (timeSinceInteraction > 500 && !isUserDraggingZoomSlider) {
                         zoomLevel.progress = zoomRatioToProgress(it.zoomRatio)
                         viewModel.samsungCurrentZoomRatio.value = it.zoomRatio
                         viewModel.setSamsungZoomRatio(it.zoomRatio)
                     }
                     zoomLevel.isVisible = true
-
                     handler.removeMessages(MSG_HIDE_ZOOM_SLIDER)
-
                     lensSelectorLayout.onZoomRatioChanged(it.zoomRatio)
                 }
             }
