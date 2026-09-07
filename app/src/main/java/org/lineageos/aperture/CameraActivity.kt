@@ -1745,10 +1745,48 @@ open class CameraActivity : AppCompatActivity(R.layout.activity_camera) {
                 .build()
             )
 
-            // Apply Samsung vendor tags if PVW is ON
+            // Apply Samsung vendor tags AFTER session is stable
+            Log.i(LOG_TAG, "SAMSUNG: scheduling HAL init in 500ms")
             handler.postDelayed({
-                if (viewModel.samsungAiEnabled.value) {
-                    viewModel.applySamsungTags()
+                Log.i(LOG_TAG, "SAMSUNG: handler.postDelayed fired, attempting setParameters")
+                try {
+                    // Access the underlying CameraDevice via Camera2CameraControl
+                    val camera2Control = viewModel.cameraController.camera2CameraControl
+                    Log.i(LOG_TAG, "SAMSUNG: camera2CameraControl=${camera2Control != null}")
+                    if (camera2Control != null) {
+                        // Get the CameraDevice through reflection
+                        val getCameraDevice = camera2Control.javaClass.getMethod("getCameraDevice")
+                        val cameraDevice = getCameraDevice.invoke(camera2Control) as? android.hardware.camera2.CameraDevice
+                        Log.i(LOG_TAG, "SAMSUNG: cameraDevice=${cameraDevice != null}")
+                        if (cameraDevice != null) {
+                            // Call Samsung setParameters to tell HAL we're Samsung Camera
+                            try {
+                                val setParams = cameraDevice.javaClass.getMethod("setParameters", String::class.java)
+                                val samsungParams = "first-entrance=true;samsungcamera=true;factorytest=false;" +
+                                        "shootingmode=0;recording-fps=0;sw-vdis=false;" +
+                                        "video-beautyface=false;vtmode=0;operation_mode=none;" +
+                                        "ssm_shot_mode=0;recording_dr_mode=sdr;sw-super_vdis=false;stream_type=0"
+                                setParams.invoke(cameraDevice, samsungParams)
+                                Log.i(LOG_TAG, "SAMSUNG HAL INITIALIZED: setParameters called successfully")
+                            } catch (e: Exception) {
+                                Log.w(LOG_TAG, "Samsung setParameters not available: ${e.message}")
+                                // Try to list available methods
+                                try {
+                                    for (m in cameraDevice.javaClass.declaredMethods) {
+                                        if (m.name.contains("param", true) || m.name.contains("set", true) || m.name.contains("send", true)) {
+                                            Log.d(LOG_TAG, "  CameraDevice method: ${m.name}(${m.parameterTypes.joinToString { it.simpleName }})")
+                                        }
+                                    }
+                                } catch (_: Exception) {}
+                            }
+                        } else {
+                            Log.w(LOG_TAG, "SAMSUNG: Could not get CameraDevice from Camera2CameraControl")
+                        }
+                    } else {
+                        Log.w(LOG_TAG, "SAMSUNG: camera2CameraControl is null")
+                    }
+                } catch (e: Exception) {
+                    Log.e(LOG_TAG, "SAMSUNG: Failed to initialize Samsung HAL", e)
                 }
             }, 500)
         }

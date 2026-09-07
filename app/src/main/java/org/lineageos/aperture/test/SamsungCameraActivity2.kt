@@ -2,7 +2,6 @@ package org.lineageos.aperture.test
 
 import android.Manifest
 import android.app.Activity
-import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.SurfaceTexture
 import android.os.Bundle
@@ -17,9 +16,8 @@ import org.lineageos.aperture.camera.SamsungCameraEngine
 import kotlin.math.sqrt
 
 /**
- * Camera activity using raw Camera2 API with Samsung zoom support.
- * Sets SCALER_CROP_REGION + samsung.android.scaler.zoomRatio together.
- * HAL automatically switches sensors based on zoom ratio.
+ * Raw Camera2 camera activity matching Samsung Camera behavior.
+ * No CameraX - direct Camera2 API with Samsung vendor tags.
  */
 class SamsungCameraActivity2 : Activity() {
     companion object {
@@ -30,9 +28,10 @@ class SamsungCameraActivity2 : Activity() {
     private lateinit var engine: SamsungCameraEngine
     private lateinit var viewfinder: TextureView
     private lateinit var zoomText: TextView
+    private lateinit var statusText: TextView
+    private lateinit var zoomSlider: android.widget.SeekBar
 
     private var currentZoom = 1.0f
-    private var baseZoom = 1.0f
     private var lastSpan = 0f
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -52,6 +51,16 @@ class SamsungCameraActivity2 : Activity() {
         }
         root.addView(viewfinder)
 
+        // Status bar - shows zoom limits, camera info, errors
+        statusText = TextView(this).apply {
+            text = "Initializing..."
+            setTextColor(0xFF4CAF50.toInt())
+            textSize = 11f
+            setPadding(16, 4, 16, 4)
+            setBackgroundColor(0x33000000)
+        }
+        root.addView(statusText)
+
         zoomText = TextView(this).apply {
             text = "Zoom: 1.0x"
             setTextColor(0xFFFFFFFF.toInt())
@@ -60,7 +69,7 @@ class SamsungCameraActivity2 : Activity() {
         }
         root.addView(zoomText)
 
-        val zoomSlider = android.widget.SeekBar(this).apply {
+        zoomSlider = android.widget.SeekBar(this).apply {
             max = 10000
             progress = 1000
             setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
@@ -113,12 +122,11 @@ class SamsungCameraActivity2 : Activity() {
             setBackgroundColor(0x40FFFFFF)
             setOnClickListener {
                 val currentFlash = engine.state.value.flashMode
-                val newFlash = if (currentFlash ==
-                    android.hardware.camera2.CaptureRequest.FLASH_MODE_OFF
-                ) android.hardware.camera2.CaptureRequest.FLASH_MODE_SINGLE
-                else android.hardware.camera2.CaptureRequest.FLASH_MODE_OFF
+                val newFlash = if (currentFlash == android.hardware.camera2.CameraMetadata.CONTROL_AE_MODE_ON)
+                    android.hardware.camera2.CameraMetadata.CONTROL_AE_MODE_ON_AUTO_FLASH
+                else android.hardware.camera2.CameraMetadata.CONTROL_AE_MODE_ON
                 engine.setFlashMode(newFlash)
-                text = if (newFlash == android.hardware.camera2.CaptureRequest.FLASH_MODE_SINGLE) "Flash ON" else "Flash OFF"
+                text = if (newFlash == android.hardware.camera2.CameraMetadata.CONTROL_AE_MODE_ON_AUTO_FLASH) "Flash AUTO" else "Flash OFF"
             }
         }
         root.addView(flashButton)
@@ -144,6 +152,17 @@ class SamsungCameraActivity2 : Activity() {
         engine.initialize()
         engine.setTextureView(viewfinder)
 
+        // Observe engine state for status updates
+        val handler = android.os.Handler(mainLooper)
+        val checkState = object : Runnable {
+            override fun run() {
+                val s = engine.state.value
+                updateStatusFromState(s)
+                handler.postDelayed(this, 500)
+            }
+        }
+        handler.post(checkState)
+
         viewfinder.surfaceTextureListener = object : TextureView.SurfaceTextureListener {
             override fun onSurfaceTextureAvailable(st: SurfaceTexture, w: Int, h: Int) {
                 engine.openCamera(SamsungCameraEngine.CAMERA_BACK) {
@@ -155,6 +174,7 @@ class SamsungCameraActivity2 : Activity() {
             override fun onSurfaceTextureUpdated(st: SurfaceTexture) {}
         }
 
+        // Pinch to zoom
         viewfinder.setOnTouchListener { _, event ->
             if (event.pointerCount >= 2) {
                 val dx = event.getX(0) - event.getX(1)
@@ -163,9 +183,13 @@ class SamsungCameraActivity2 : Activity() {
 
                 if (lastSpan > 0) {
                     val scaleFactor = span / lastSpan
-                    currentZoom = (currentZoom * scaleFactor).coerceIn(0.5f, 100f)
+                    currentZoom = (currentZoom * scaleFactor).coerceIn(
+                        engine.state.value.minZoom,
+                        engine.state.value.maxZoom
+                    )
                     engine.setZoom(currentZoom)
                     updateZoomDisplay()
+                    zoomSlider.progress = zoomToProgress(currentZoom)
                 }
                 lastSpan = span
             } else {
@@ -175,8 +199,43 @@ class SamsungCameraActivity2 : Activity() {
         }
     }
 
+    private fun updateStatusFromState(s: SamsungCameraEngine.CameraState) {
+        val lines = mutableListOf<String>()
+        lines.add("Camera: ${s.currentCameraId} | Zoom: ${s.samsungMaxZoom}x max (Samsung) / ${s.aospMaxZoom}x (AOSP)")
+        lines.add("Active array: ${s.activeArray}")
+        lines.add("Status: ${s.statusMessage}")
+
+        if (s.activeArray != null) {
+            val crop = calculateCropRegion(s.activeArray, currentZoom)
+            lines.add("Crop region at ${currentZoom}x: $crop")
+            lines.add("Crop size: ${crop.width()}x${crop.height()} (${crop.width() * crop.height() / 1000}K pixels)")
+        }
+
+        if (currentZoom > s.aospMaxZoom) {
+            lines.add("WARNING: Zoom ${currentZoom}x exceeds AOSP max ${s.aospMaxZoom}x")
+            lines.add("Samsung tag set to ${currentZoom}x - HAL should process this")
+        }
+
+        statusText.text = lines.joinToString("\n")
+    }
+
     private fun updateZoomDisplay() {
-        zoomText.text = "Zoom: ${"%.1f".format(currentZoom)}x (${engine.state.value.currentCameraId})"
+        val s = engine.state.value
+        zoomText.text = "Zoom: ${"%.1f".format(currentZoom)}x (${s.currentCameraId})"
+    }
+
+    private fun calculateCropRegion(activeArray: android.graphics.Rect, zoomRatio: Float): android.graphics.Rect {
+        if (zoomRatio <= 1.0f) return activeArray
+        val w = activeArray.width()
+        val h = activeArray.height()
+        val offsetX = ((w - (w / zoomRatio)) / 2).toInt()
+        val offsetY = ((h - (h / zoomRatio)) / 2).toInt()
+        return android.graphics.Rect(
+            (activeArray.left + offsetX).coerceAtLeast(activeArray.left),
+            (activeArray.top + offsetY).coerceAtLeast(activeArray.top),
+            (activeArray.right - offsetX).coerceAtMost(activeArray.right),
+            (activeArray.bottom - offsetY).coerceAtMost(activeArray.bottom)
+        )
     }
 
     private fun progressToZoom(progress: Float): Float {
