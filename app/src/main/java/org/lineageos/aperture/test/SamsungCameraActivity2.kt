@@ -1,4 +1,4 @@
-package com.ultracam.app.test
+package org.lineageos.aperture.test
 
 import android.Manifest
 import android.app.Activity
@@ -13,7 +13,7 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import com.ultracam.app.camera.SamsungCameraEngine
+import org.lineageos.aperture.camera.SamsungCameraEngine
 import kotlin.math.sqrt
 
 /**
@@ -146,7 +146,7 @@ class SamsungCameraActivity2 : Activity() {
 
         viewfinder.surfaceTextureListener = object : TextureView.SurfaceTextureListener {
             override fun onSurfaceTextureAvailable(st: SurfaceTexture, w: Int, h: Int) {
-                engine.openCamera(SamsungCameraEngine.CAMERA_BACK) {
+                engine.openCamera(SamsungCameraEngine.CAMERA_ULTRA_WIDE) {
                     engine.createPreviewSession()
                 }
             }

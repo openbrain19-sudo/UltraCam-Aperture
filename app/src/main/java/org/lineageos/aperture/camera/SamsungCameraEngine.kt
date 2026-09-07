@@ -1,4 +1,4 @@
-package com.ultracam.app.camera
+package org.lineageos.aperture.camera
 
 import android.annotation.SuppressLint
 import android.content.Context
@@ -215,6 +215,16 @@ class SamsungCameraEngine(private val context: Context) {
                         isOpen = true, currentCameraId = cameraId
                     )
                     Log.i(TAG, "Camera $cameraId opened")
+
+                    // Try Samsung setParameters initialization
+                    try {
+                        val setParams = camera.javaClass.getMethod("setParameters", String::class.java)
+                        setParams.invoke(camera, "first-entrance=true;samsungcamera=true;shootingmode=0")
+                        Log.i(TAG, "Samsung setParameters initialized")
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Samsung setParameters not available: ${e.message}")
+                    }
+
                     onOpened?.invoke()
                 }
 
