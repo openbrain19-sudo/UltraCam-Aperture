@@ -216,13 +216,27 @@ class SamsungCameraEngine(private val context: Context) {
                     )
                     Log.i(TAG, "Camera $cameraId opened")
 
-                    // Try Samsung setParameters initialization
+                    // Try Samsung setParameters with FULL parameter string
+                    // This tells the HAL "I'm Samsung Camera app"
                     try {
                         val setParams = camera.javaClass.getMethod("setParameters", String::class.java)
-                        setParams.invoke(camera, "first-entrance=true;samsungcamera=true;shootingmode=0")
-                        Log.i(TAG, "Samsung setParameters initialized")
+                        val samsungParams = "first-entrance=true;samsungcamera=true;factorytest=false;" +
+                                "shootingmode=0;recording-fps=0;sw-vdis=false;" +
+                                "video-beautyface=false;vtmode=0;operation_mode=none;" +
+                                "ssm_shot_mode=0;recording_dr_mode=sdr;sw-super_vdis=false;stream_type=0"
+                        setParams.invoke(camera, samsungParams)
+                        Log.i(TAG, "Samsung setParameters: $samsungParams")
                     } catch (e: Exception) {
-                        Log.w(TAG, "Samsung setParameters not available: ${e.message}")
+                        Log.w(TAG, "Samsung setParameters failed: ${e.message}")
+                        // List available methods for debugging
+                        try {
+                            val methods = camera.javaClass.declaredMethods
+                            for (m in methods) {
+                                if (m.name.contains("param", true) || m.name.contains("set", true)) {
+                                    Log.d(TAG, "  Method: ${m.name}(${m.parameterTypes.joinToString { it.simpleName }})")
+                                }
+                            }
+                        } catch (_: Exception) {}
                     }
 
                     onOpened?.invoke()

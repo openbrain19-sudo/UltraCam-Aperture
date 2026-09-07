@@ -146,7 +146,7 @@ class SamsungCameraActivity2 : Activity() {
 
         viewfinder.surfaceTextureListener = object : TextureView.SurfaceTextureListener {
             override fun onSurfaceTextureAvailable(st: SurfaceTexture, w: Int, h: Int) {
-                engine.openCamera(SamsungCameraEngine.CAMERA_ULTRA_WIDE) {
+                engine.openCamera(SamsungCameraEngine.CAMERA_BACK) {
                     engine.createPreviewSession()
                 }
             }

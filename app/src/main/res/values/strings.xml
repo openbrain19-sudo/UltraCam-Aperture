@@ -5,7 +5,7 @@
 -->
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <!-- App/Activities -->
-    <string name="app_name">Camera</string>
+    <string name="app_name">UltraAperture</string>
     <string name="video_camera_label">Camcorder</string>
 
     <!-- Content descriptions -->
