@@ -1747,12 +1747,13 @@ class CameraViewModel(application: Application) : ApertureViewModel(application)
         samsungCurrentZoomRatio.value = targetZoom
         setSamsungZoomRatio(targetZoom)
 
-        // For zoom within AOSP max, let CameraX handle SCALER_CROP_REGION
-        val maxCameraXZoom = zoomState.value?.maxZoomRatio ?: 8.0f
+        // Set CameraX zoom (this sets SCALER_CROP_REGION internally)
+        val maxCameraXZoom = 8.0f
         if (targetZoom <= maxCameraXZoom) {
             cameraController.setZoomRatio(targetZoom)
         } else {
-            // Beyond AOSP max: set CameraX to max + Samsung tags handle the rest
+            // Beyond CameraX max: set CameraX to max
+            // Samsung zoomRatio tag tells HAL the real zoom level
             cameraController.setZoomRatio(maxCameraXZoom)
         }
 
